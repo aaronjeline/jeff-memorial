@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Where We Travelled</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Nunito+Sans:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; }
+
+  body {
+    background: #1a1712;
+    color: #e8dfd2;
+    font-family: 'Nunito Sans', sans-serif;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* --- Header --- */
+  header {
+    padding: 20px 28px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid #3d3528;
+    background: linear-gradient(180deg, #242018 0%, #1a1712 100%);
+    flex-shrink: 0;
+    position: relative;
+    z-index: 1000;
+  }
+  .title-block { display: flex; flex-direction: column; gap: 2px; }
+  h1 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 26px;
+    font-weight: 300;
+    color: #c4a265;
+    letter-spacing: 0.03em;
+    line-height: 1.2;
+  }
+  .subtitle {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 14px;
+    font-weight: 300;
+    font-style: italic;
+    color: #a09482;
+    letter-spacing: 0.05em;
+  }
+  .pin-count {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #a09482;
+    font-weight: 300;
+  }
+  .pin-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #c4a265;
+    box-shadow: 0 0 8px #8a7245;
+  }
+
+  /* --- Map --- */
+  #map-wrap { flex: 1; position: relative; }
+  #map { width: 100%; height: 100%; background: #1a1712; }
+
+  .leaflet-tile-pane { filter: none; }
+  .leaflet-control-zoom a {
+    background: #242018 !important;
+    color: #c4a265 !important;
+    border-color: #3d3528 !important;
+  }
+  .leaflet-control-zoom a:hover { background: #2e2820 !important; }
+  .leaflet-control-attribution {
+    background: rgba(18,15,10,0.85) !important;
+    color: #6b5f4f !important;
+    font-size: 10px !important;
+  }
+  .leaflet-control-attribution a { color: #8a7245 !important; }
+  .leaflet-popup-content-wrapper {
+    background: #242018 !important;
+    color: #e8dfd2 !important;
+    border-radius: 8px !important;
+    border: 1px solid #3d3528 !important;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4) !important;
+  }
+  .leaflet-popup-tip { background: #242018 !important; }
+  .leaflet-popup-close-button { color: #a09482 !important; font-size: 18px !important; }
+  .leaflet-popup-close-button:hover { color: #c4a265 !important; }
+
+  /* --- Custom marker --- */
+  .memorial-marker {
+    width: 28px; height: 28px;
+    background: #e53935;
+    border: 2px solid #ff6f61;
+    border-radius: 50% 50% 50% 0;
+    transform: rotate(-45deg);
+    box-shadow: 0 3px 12px rgba(0,0,0,0.4);
+    transition: transform 0.2s, box-shadow 0.2s;
+    position: relative;
+    animation: pulse 2.5s ease-in-out infinite;
+  }
+  .memorial-marker::after {
+    content: '';
+    width: 10px; height: 10px;
+    background: #242018;
+    border-radius: 50%;
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+  }
+  .memorial-marker:hover {
+    transform: rotate(-45deg) scale(1.15);
+    box-shadow: 0 4px 18px rgba(229,57,53,0.4);
+  }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 3px 12px rgba(0,0,0,0.4); }
+    50% { box-shadow: 0 3px 20px rgba(229,57,53,0.5); }
+  }
+
+  /* --- Popup content --- */
+  .popup-name {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 18px; font-weight: 500;
+    color: #c4a265; margin-bottom: 2px;
+  }
+  .popup-coords {
+    font-size: 11px; color: #6b5f4f;
+    font-family: monospace;
+  }
+
+  /* --- Hint bar --- */
+  /* --- Help button --- */
+  .help-btn {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    border: 1.5px solid #c4a265;
+    background: rgba(196,162,101,0.12);
+    color: #c4a265;
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 15px; font-weight: 600;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s;
+  }
+  .help-btn:hover { background: rgba(196,162,101,0.25); }
+
+  .help-overlay {
+    position: fixed; inset: 0;
+    background: rgba(18,15,10,0.88);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 2000;
+    backdrop-filter: blur(4px);
+  }
+  .help-modal {
+    background: #242018;
+    border: 1px solid #3d3528;
+    border-radius: 12px;
+    padding: 32px;
+    width: 90%; max-width: 440px;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.4);
+  }
+  .help-modal h2 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 22px; font-weight: 400;
+    color: #c4a265; margin-bottom: 16px;
+  }
+  .help-modal p {
+    font-size: 14px; color: #c8bfb0;
+    line-height: 1.6; margin-bottom: 12px;
+    font-weight: 300;
+  }
+  .help-modal .help-section {
+    margin-bottom: 20px;
+  }
+  .help-modal .help-section-title {
+    font-size: 11px; font-weight: 600;
+    color: #a09482; text-transform: uppercase;
+    letter-spacing: 0.1em; margin-bottom: 8px;
+  }
+
+  /* --- Locate button --- */
+  .locate-btn {
+    position: absolute;
+    top: 12px; right: 12px;
+    z-index: 800;
+    width: 40px; height: 40px;
+    border-radius: 8px;
+    border: 1px solid #3d3528;
+    background: #242018;
+    color: #a09482;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+    transition: all 0.2s;
+  }
+  .locate-btn:hover { border-color: #c4a265; color: #c4a265; }
+  .locate-btn.locating { animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .hint {
+    position: absolute;
+    bottom: 24px; left: 50%;
+    transform: translateX(-50%);
+    background: #242018;
+    border: 1px solid #3d3528;
+    border-radius: 24px;
+    padding: 10px 20px;
+    font-size: 13px;
+    color: #a09482;
+    z-index: 800;
+    pointer-events: none;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    font-weight: 300;
+    transition: opacity 0.4s;
+  }
+
+  /* --- Modal --- */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(18,15,10,0.88);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 2000;
+    backdrop-filter: blur(4px);
+  }
+  .modal {
+    background: #242018;
+    border: 1px solid #3d3528;
+    border-radius: 12px;
+    padding: 32px;
+    width: 90%; max-width: 420px;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.4);
+  }
+  .modal-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 22px; font-weight: 400;
+    color: #c4a265; margin-bottom: 4px;
+  }
+  .modal-coords {
+    font-size: 12px; color: #6b5f4f;
+    margin-bottom: 24px;
+    font-family: monospace;
+    letter-spacing: 0.04em;
+  }
+  .field { margin-bottom: 16px; }
+  .field label {
+    display: block; font-size: 11px; font-weight: 600;
+    color: #a09482; text-transform: uppercase;
+    letter-spacing: 0.1em; margin-bottom: 6px;
+  }
+  .field input[type="text"] {
+    width: 100%; padding: 10px 14px;
+    background: #1a1712;
+    border: 1px solid #3d3528;
+    border-radius: 6px;
+    color: #e8dfd2; font-size: 14px;
+    font-family: 'Nunito Sans', sans-serif;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .field input[type="text"]:focus { border-color: #c4a265; }
+
+
+  .btn-row { display: flex; gap: 10px; margin-top: 24px; }
+  .btn-primary {
+    flex: 1; padding: 11px;
+    background: #c4a265; color: #1a1712;
+    border: none; border-radius: 6px;
+    font-size: 14px; font-weight: 600;
+    cursor: pointer; font-family: 'Nunito Sans', sans-serif;
+    letter-spacing: 0.03em;
+    transition: background 0.2s;
+  }
+  .btn-primary:hover { background: #dbc08a; }
+  .btn-primary:disabled { opacity: 0.4; cursor: default; }
+  .btn-secondary {
+    flex: 1; padding: 11px;
+    background: transparent;
+    border: 1px solid #3d3528;
+    color: #a09482; border-radius: 6px;
+    font-size: 14px; cursor: pointer;
+    font-family: 'Nunito Sans', sans-serif;
+    transition: all 0.2s;
+  }
+  .btn-secondary:hover { border-color: #8a7245; color: #e8dfd2; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="title-block">
+    <h1>Where We Travelled</h1>
+    <p class="subtitle">A map of journeys shared &amp; remembered</p>
+  </div>
+  <div style="display:flex;align-items:center;gap:12px;">
+    <div class="pin-count">
+      <div class="pin-dot"></div>
+      <span id="count-label">…</span>
+    </div>
+    <button class="help-btn" id="help-btn" title="Help">?</button>
+  </div>
+</header>
+
+<div id="map-wrap">
+  <div id="map"></div>
+  <button class="locate-btn" id="locate-btn" title="Use my current location">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="4"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/>
+    </svg>
+  </button>
+  <div class="hint" id="hint">Click anywhere on the map to place a memory</div>
+</div>
+
+<!-- Help modal -->
+<div class="help-overlay" id="help-modal" style="display:none;" onclick="this.style.display='none'">
+  <div class="help-modal" onclick="event.stopPropagation()">
+    <h2>About This Map</h2>
+    <div class="help-section">
+      <div class="help-section-title">Purpose</div>
+      <p>This is a shared map to celebrate Jeff's love of travel. Drop a pin somewhere you have travelled and placed a sticker in his memory.</p>
+    </div>
+    <div class="help-section">
+      <div class="help-section-title">How to Use</div>
+      <p>Click anywhere on the map to place a pin. Enter your name, and the memory will be saved with the date and location.</p>
+      <p>You can also tap the crosshair button in the top-right corner of the map to drop a pin at your current location.</p>
+    </div>
+    <div class="btn-row">
+      <button class="btn-primary" onclick="document.getElementById('help-modal').style.display='none'">Got It</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal (hidden by default) -->
+<div class="modal-overlay" id="modal" style="display:none;">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-title">Place a Memory</div>
+    <div class="modal-coords" id="modal-coords"></div>
+
+    <div class="field">
+      <label>Your Name</label>
+      <input type="text" id="input-name" placeholder="Enter your name" autocomplete="off">
+    </div>
+
+
+    <div class="btn-row">
+      <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn-primary" id="btn-submit" disabled onclick="submitPin()">Place Pin</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+(function() {
+  // --- Firebase ---
+  const firebaseConfig = {
+    apiKey: "AIzaSyD8tf4fMS-Hz1fx5OA9dZw-r8lCH6j-wZc",
+    authDomain: "jeff-memorial.firebaseapp.com",
+    projectId: "jeff-memorial",
+    storageBucket: "jeff-memorial.firebasestorage.app",
+    messagingSenderId: "47684715727",
+    appId: "1:47684715727:web:0e74170e1fe10f7e63e3ba"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+  const pinsCollection = db.collection("pins");
+
+  let pins = [];
+  let pendingLatLng = null;
+  let markers = [];
+
+  // --- DOM refs ---
+  const $map = document.getElementById("map");
+  const $modal = document.getElementById("modal");
+  const $modalCoords = document.getElementById("modal-coords");
+  const $name = document.getElementById("input-name");
+  const $btnSubmit = document.getElementById("btn-submit");
+  const $countLabel = document.getElementById("count-label");
+  const $hint = document.getElementById("hint");
+
+  // --- Map ---
+  const map = L.map("map", {
+    center: [30, 0], zoom: 2, minZoom: 2, maxZoom: 16,
+    worldCopyJump: true, zoomControl: true,
+  });
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    attribution: '&copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap</a>',
+  }).addTo(map);
+
+  map.on("click", function(e) {
+    pendingLatLng = e.latlng;
+    openModal();
+  });
+
+  // --- Markers ---
+  function makeIcon() {
+    return L.divIcon({
+      className: "",
+      html: '<div class="memorial-marker"></div>',
+      iconSize: [28, 28],
+      iconAnchor: [14, 28],
+      popupAnchor: [0, -30],
+    });
+  }
+
+  function renderMarkers() {
+    markers.forEach(function(m) { map.removeLayer(m); });
+    markers = [];
+    pins.forEach(function(pin) {
+      var m = L.marker([pin.lat, pin.lng], { icon: makeIcon() }).addTo(map);
+      var html = '<div style="min-width:200px;max-width:260px;">';
+      html += '<div class="popup-name">' + escapeHtml(pin.name) + '</div>';
+      html += '<div class="popup-coords">' + pin.lat.toFixed(4) + '°, ' + pin.lng.toFixed(4) + '°</div>';
+      if (pin.createdAt) {
+        html += '<div class="popup-coords" style="margin-top:4px;">' + new Date(pin.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }) + '</div>';
+      }
+      html += '</div>';
+      m.bindPopup(html, { maxWidth: 280 });
+      markers.push(m);
+    });
+    updateCount();
+  }
+
+  function updateCount() {
+    var n = pins.length;
+    $countLabel.textContent = n + " " + (n === 1 ? "memory" : "memories");
+    $hint.style.opacity = n === 0 ? "1" : "0";
+  }
+
+  // --- Modal ---
+  function openModal() {
+    $modal.style.display = "flex";
+    $modalCoords.textContent = pendingLatLng.lat.toFixed(4) + "°, " + pendingLatLng.lng.toFixed(4) + "°";
+    $name.value = "";
+    $btnSubmit.disabled = true;
+    setTimeout(function() { $name.focus(); }, 50);
+  }
+
+  window.closeModal = function() {
+    $modal.style.display = "none";
+    pendingLatLng = null;
+  };
+  $modal.addEventListener("click", function(e) {
+    if (e.target === $modal) closeModal();
+  });
+
+  $name.addEventListener("input", function() {
+    $btnSubmit.disabled = !$name.value.trim();
+  });
+
+  // --- Submit ---
+  window.submitPin = function() {
+    var name = $name.value.trim();
+    if (!name || !pendingLatLng) return;
+    $btnSubmit.disabled = true;
+    pinsCollection.add({
+      name: name,
+      lat: pendingLatLng.lat,
+      lng: pendingLatLng.lng,
+      createdAt: new Date().toISOString(),
+    }).then(function() {
+      closeModal();
+    }).catch(function(err) {
+      alert("Failed to save pin: " + err.message);
+      $btnSubmit.disabled = false;
+    });
+  };
+
+  // --- Util ---
+  function escapeHtml(str) {
+    var div = document.createElement("div");
+    div.appendChild(document.createTextNode(str));
+    return div.innerHTML;
+  }
+
+  // --- Help ---
+  document.getElementById("help-btn").addEventListener("click", function() {
+    document.getElementById("help-modal").style.display = "flex";
+  });
+
+  // --- Locate me ---
+  var $locateBtn = document.getElementById("locate-btn");
+  $locateBtn.addEventListener("click", function() {
+    if (!navigator.geolocation) {
+      alert("Geolocation is not supported by your browser.");
+      return;
+    }
+    $locateBtn.classList.add("locating");
+    navigator.geolocation.getCurrentPosition(
+      function(pos) {
+        $locateBtn.classList.remove("locating");
+        var latlng = L.latLng(pos.coords.latitude, pos.coords.longitude);
+        map.flyTo(latlng, 13);
+        pendingLatLng = latlng;
+        openModal();
+      },
+      function(err) {
+        $locateBtn.classList.remove("locating");
+        alert("Could not get your location: " + err.message);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  });
+
+  // --- Init: real-time listener ---
+  pinsCollection.orderBy("createdAt").onSnapshot(function(snapshot) {
+    pins = [];
+    snapshot.forEach(function(doc) {
+      pins.push(doc.data());
+    });
+    renderMarkers();
+  });
+})();
+</script>
+</body>
+</html>
